@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>METROPOLE — New York × Tokyo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --gold:#c9a24b; --gold-light:#e8cf8f; --ink:#08090d; --ink-2:#0e1016;
+    --bone:#f2ede3; --muted:#6f6b61;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--ink);color:var(--bone);font-family:'Inter',sans-serif;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+  ::selection{background:var(--gold);color:var(--ink)}
+  ::-webkit-scrollbar{width:4px}
+  ::-webkit-scrollbar-track{background:var(--ink)}
+  ::-webkit-scrollbar-thumb{background:var(--gold)}
+
+  @media (pointer:fine){ body,a,button,input,textarea{cursor:none} }
+  #cursor-dot,#cursor-ring{position:fixed;top:0;left:0;pointer-events:none;z-index:2000;border-radius:50%;transform:translate(-50%,-50%)}
+  #cursor-dot{width:5px;height:5px;background:var(--gold-light)}
+  #cursor-ring{width:34px;height:34px;border:1px solid rgba(201,162,75,.45);transition:width .35s,height .35s,border-color .35s}
+  #cursor-ring.hovering{width:60px;height:60px;border-color:var(--gold-light)}
+  @media (pointer:coarse){#cursor-dot,#cursor-ring{display:none}}
+
+  #loader{position:fixed;inset:0;background:var(--ink);z-index:3000;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 1.1s ease,visibility 1.1s}
+  #loader.done{opacity:0;visibility:hidden}
+  #loader .mono{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(34px,6vw,64px);letter-spacing:.5em;color:var(--gold-light);opacity:0;animation:fadeUp 1.4s .2s forwards}
+  @keyframes fadeUp{to{opacity:1;transform:none}from{opacity:0;transform:translateY(20px)}}
+
+  nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;justify-content:space-between;align-items:center;padding:34px clamp(24px,5vw,72px);transition:.6s}
+  nav.scrolled{background:rgba(8,9,13,.7);backdrop-filter:blur(16px);padding:20px clamp(24px,5vw,72px)}
+  .logo{font-family:'Cormorant Garamond',serif;font-weight:400;font-size:24px;letter-spacing:.45em;color:#fff;text-decoration:none}
+  nav ul{display:flex;gap:44px;list-style:none;align-items:center}
+  nav ul a{color:var(--bone);text-decoration:none;font-size:13px;font-weight:300;letter-spacing:.12em;opacity:.75;transition:.3s}
+  nav ul a:hover{opacity:1;color:var(--gold-light)}
+  @media(max-width:860px){nav ul li:not(.keep){display:none}}
+
+  #hero{position:relative;height:100vh;display:flex;align-items:center;justify-content:center}
+  #hero h1{font-family:'Cormorant Garamond',serif;font-weight:300;text-align:center;font-size:clamp(52px,10vw,136px);line-height:1.04;letter-spacing:.01em}
+  #hero h1 em{font-style:italic;font-weight:400;color:var(--gold-light)}
+  #hero .scroll-cue{position:absolute;bottom:9vh;left:50%;transform:translateX(-50%)}
+  #hero .scroll-cue .line{width:1px;height:64px;background:linear-gradient(var(--gold),transparent);animation:drip 2.2s infinite}
+  @keyframes drip{0%{transform:scaleY(0);transform-origin:top}50%{transform:scaleY(1);transform-origin:top}51%{transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
+
+  #stage{position:relative;height:660vh}
+  #canvas-wrap{position:sticky;top:0;height:100vh;overflow:hidden}
+  canvas{display:block}
+  .hud{position:absolute;top:50%;transform:translateY(-50%);left:clamp(24px,7vw,96px);z-index:10;pointer-events:none}
+  .hud .roman{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(56px,8vw,110px);color:rgba(201,162,75,.9);line-height:1}
+  .hud h2{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(34px,5vw,66px);margin-top:18px;line-height:1.1}
+  .hud h2 em{font-style:italic;color:var(--gold-light)}
+  .p-line{position:absolute;right:clamp(24px,5vw,72px);top:20vh;bottom:20vh;width:1px;background:rgba(201,162,75,.18);z-index:10}
+  .p-line i{position:absolute;top:0;left:0;width:100%;height:0%;background:var(--gold);display:block}
+  .vignette{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 52%,rgba(0,0,0,.6) 100%)}
+
+  .chapter{max-width:1200px;margin:0 auto;padding:22vh clamp(24px,6vw,80px)}
+  .statement{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(38px,6.5vw,84px);line-height:1.12;max-width:16ch}
+  .statement em{font-style:italic;color:var(--gold-light)}
+  .statement.small{font-size:clamp(30px,4.5vw,56px);max-width:20ch}
+
+  #numbers{display:flex;justify-content:space-between;flex-wrap:wrap;gap:60px;margin-top:14vh;border-top:1px solid rgba(201,162,75,.2);padding-top:9vh}
+  .num-item b{display:block;font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(60px,7vw,104px);line-height:1}
+  .num-item b i{font-style:normal;color:var(--gold)}
+  .num-item span{display:block;margin-top:16px;font-size:15px;font-weight:300;color:var(--muted);letter-spacing:.06em}
+
+  .cities{display:grid;grid-template-columns:1fr 1fr;gap:80px;margin-top:14vh}
+  @media(max-width:860px){.cities{grid-template-columns:1fr;gap:56px}}
+  .city{border-top:1px solid rgba(201,162,75,.35);padding-top:40px}
+  .city svg{width:100%;height:auto;margin:44px 0;stroke:var(--gold);fill:none;stroke-width:1;opacity:.85;transition:1s}
+  .city:hover svg{opacity:1}
+  .city h3{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(30px,3.6vw,46px)}
+  .city h3 em{font-style:italic;color:var(--gold-light)}
+  .city p{margin-top:20px;color:var(--muted);font-weight:300;font-size:16px;line-height:1.9;max-width:40ch}
+
+  .plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:60px;margin-top:14vh}
+  .plan{position:relative}
+  .plan .frame{border:1px solid rgba(201,162,75,.25);aspect-ratio:4/3;position:relative;overflow:hidden;background:
+    linear-gradient(rgba(201,162,75,.05) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(201,162,75,.05) 1px,transparent 1px),#0a0f1c;
+    background-size:32px 32px}
+  .plan svg{position:absolute;inset:14%;width:72%;height:72%;stroke:var(--gold-light);fill:none;stroke-width:1.2;transition:1.2s cubic-bezier(.2,.8,.2,1)}
+  .plan:hover svg{transform:scale(1.07)}
+  .plan .n{position:absolute;top:26px;left:28px;font-family:'Cormorant Garamond',serif;font-weight:300;font-size:30px;color:rgba(201,162,75,.55)}
+  .plan p{margin-top:22px;font-family:'Cormorant Garamond',serif;font-weight:300;font-size:24px}
+  .plan p em{font-style:italic;color:var(--gold-light)}
+
+  #voices .quote-box{max-width:900px;margin:12vh auto 0;min-height:260px;position:relative;text-align:center}
+  .quote{position:absolute;inset:0;opacity:0;transition:opacity 1.1s;display:flex;flex-direction:column;justify-content:center;gap:36px}
+  .quote.on{opacity:1}
+  .quote p{font-family:'Cormorant Garamond',serif;font-weight:300;font-style:italic;font-size:clamp(26px,3.6vw,44px);line-height:1.4}
+  .quote cite{font-style:normal;font-size:15px;font-weight:300;color:var(--gold);letter-spacing:.08em}
+  .q-nav{display:flex;gap:16px;justify-content:center;margin-top:40px}
+  .q-nav button{width:44px;height:1px;border:none;background:rgba(201,162,75,.25);transition:.4s}
+  .q-nav button.on{background:var(--gold)}
+
+  #enquire{display:grid;grid-template-columns:1.1fr 1fr;gap:10vw}
+  @media(max-width:860px){#enquire{grid-template-columns:1fr;gap:80px}}
+  form{display:flex;flex-direction:column;gap:34px;margin-top:6vh}
+  .field{position:relative}
+  .field input,.field textarea{width:100%;background:transparent;border:none;border-bottom:1px solid rgba(201,162,75,.28);padding:14px 2px;color:var(--bone);font-family:'Cormorant Garamond',serif;font-size:22px;outline:none;transition:.4s;resize:none}
+  .field label{position:absolute;left:2px;top:14px;font-size:16px;font-weight:300;color:var(--muted);pointer-events:none;transition:.35s}
+  .field input:focus,.field textarea:focus{border-color:var(--gold)}
+  .field input:focus+label,.field input:valid+label,
+  .field textarea:focus+label,.field textarea:valid+label{top:-14px;font-size:12px;color:var(--gold)}
+  button.gold-btn{align-self:flex-start;background:transparent;border:1px solid var(--gold);color:var(--gold-light);padding:20px 52px;font-size:13px;font-weight:300;letter-spacing:.3em;text-transform:uppercase;position:relative;overflow:hidden;transition:.5s;font-family:'Inter',sans-serif;z-index:1}
+  button.gold-btn::before{content:'';position:absolute;inset:0;background:var(--gold);transform:scaleX(0);transform-origin:left;transition:.5s;z-index:-1}
+  button.gold-btn:hover{color:var(--ink)}
+  button.gold-btn:hover::before{transform:scaleX(1)}
+  #form-msg{margin-top:6px;font-size:15px;color:var(--gold-light);opacity:0;transition:.5s}
+
+  footer{padding:12vh clamp(24px,6vw,80px) 6vh;border-top:1px solid rgba(201,162,75,.15)}
+  footer .big{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(40px,7vw,88px)}
+  footer .big em{font-style:italic;color:var(--gold-light)}
+  footer .cols{display:flex;justify-content:space-between;flex-wrap:wrap;gap:30px;margin-top:8vh}
+  footer .cols div{font-size:15px;font-weight:300;color:var(--muted);line-height:2.1}
+  footer .cols b{display:block;color:var(--bone);font-weight:400;font-size:14px;letter-spacing:.15em}
+
+  .reveal{opacity:0;transform:translateY(60px)}
+</style>
+</head>
+<body>
+
+<div id="cursor-ring"></div>
+<div id="cursor-dot"></div>
+
+<div id="loader"><div class="mono">METROPOLE</div></div>
+
+<nav id="nav">
+  <a class="logo" href="#hero">M</a>
+  <ul>
+    <li><a href="#stage">The Rise</a></li>
+    <li><a href="#cities">Cities</a></li>
+    <li><a href="#plans">Plans</a></li>
+    <li><a href="#enquire">Enquire</a></li>
+  </ul>
+</nav>
+
+<section id="hero">
+  <h1>The city never sleeps.<br><em>Neither does ambition.</em></h1>
+  <div class="scroll-cue"><div class="line"></div></div>
+</section>
+
+<section id="stage">
+  <div id="canvas-wrap">
+    <div class="vignette"></div>
+    <div class="hud">
+      <div class="roman" id="roman">I</div>
+      <h2 id="step-title">Concrete &amp; <em>Intent</em></h2>
+    </div>
+    <div class="p-line"><i id="p-fill"></i></div>
+  </div>
+</section>
+
+<section class="chapter" id="cities">
+  <h2 class="statement reveal">Two skylines.<br><em>One standard.</em></h2>
+  <div id="numbers">
+    <div class="num-item reveal"><b><i data-count="2">0</i></b><span>Iconic skylines</span></div>
+    <div class="num-item reveal"><b><i data-count="92">0</i></b><span>Penthouses delivered</span></div>
+    <div class="num-item reveal"><b><i data-count="400">0</i>+</b><span>Metres, tallest residence</span></div>
+    <div class="num-item reveal"><b>$<i data-count="4.6" data-dec="1">0</i>B</b><span>Skyline portfolio</span></div>
+  </div>
+  <div class="cities">
+    <div class="city reveal">
+      <svg viewBox="0 0 400 300">
+        <g>
+          <rect x="20" y="160" width="36" height="140"/><rect x="29" y="130" width="18" height="30"/>
+          <rect x="70" y="90" width="44" height="210"/><line x1="70" y1="130" x2="114" y2="130"/><line x1="70" y1="175" x2="114" y2="175"/><line x1="70" y1="220" x2="114" y2="220"/>
+          <path d="M170 300 V110 l10 -28 10 28 V300"/>
+          <rect x="220" y="150" width="48" height="150"/><line x1="220" y1="195" x2="268" y2="195"/><line x1="220" y1="245" x2="268" y2="245"/>
+          <rect x="290" y="70" width="40" height="230"/><line x1="290" y1="120" x2="330" y2="120"/><line x1="290" y1="175" x2="330" y2="175"/><line x1="290" y1="230" x2="330" y2="230"/>
+          <rect x="350" y="190" width="30" height="110"/>
+        </g>
+        <g fill="#e8cf8f" stroke="none" opacity=".8"><circle cx="38" cy="200" r="2"/><circle cx="92" cy="150" r="2"/><circle cx="92" cy="260" r="2"/><circle cx="244" cy="180" r="2"/><circle cx="310" cy="140" r="2"/><circle cx="310" cy="255" r="2"/><circle cx="180" cy="160" r="2"/></g>
+      </svg>
+      <h3>New York — <em>The Manhattan Collection</em></h3>
+      <p>Full-floor penthouses on Fifth and Park. Private elevators, glass above the clouds, and the skyline itself as your address.</p>
+    </div>
+    <div class="city reveal">
+      <svg viewBox="0 0 400 300">
+        <g>
+          <path d="M40 300 V170 M30 180 h20 M32 220 h16 M32 260 h16"/>
+          <rect x="80" y="120" width="42" height="180"/><line x1="80" y1="165" x2="122" y2="165"/><line x1="80" y1="215" x2="122" y2="215"/><line x1="80" y1="255" x2="122" y2="255"/>
+          <path d="M170 300 V60 M148 60 h44 M157 34 h26 M165 12 h10 M170 0 v12"/>
+          <path d="M148 60 L170 34 L192 60 M157 34 L170 12 L183 34"/>
+          <rect x="230" y="150" width="46" height="150"/><line x1="230" y1="195" x2="276" y2="195"/><line x1="230" y1="240" x2="276" y2="240"/>
+          <rect x="300" y="100" width="38" height="200"/><line x1="300" y1="150" x2="338" y2="150"/><line x1="300" y1="205" x2="338" y2="205"/><line x1="300" y1="255" x2="338" y2="255"/>
+          <path d="M360 300 V190 M352 200 h16 M352 240 h16"/>
+        </g>
+        <g fill="#e8cf8f" stroke="none" opacity=".8"><circle cx="101" cy="190" r="2"/><circle cx="101" cy="270" r="2"/><circle cx="170" cy="90" r="2"/><circle cx="253" cy="220" r="2"/><circle cx="319" cy="170" r="2"/><circle cx="319" cy="270" r="2"/><circle cx="40" cy="240" r="2"/></g>
+      </svg>
+      <h3>Tokyo — <em>The Ginza Collection</em></h3>
+      <p>Omotenashi service above the world's most refined district. Stillness, onsen baths in the sky, and silence at four hundred metres.</p>
+    </div>
+  </div>
+</section>
+
+<section class="chapter" id="plans">
+  <h2 class="statement small reveal">Drawn before<br><em>they rise.</em></h2>
+  <div class="plans">
+    <div class="plan reveal">
+      <div class="frame"><span class="n">I</span>
+        <svg viewBox="0 0 100 75"><rect x="42" y="8" width="16" height="60"/><line x1="42" y1="20" x2="58" y2="20"/><line x1="42" y1="32" x2="58" y2="32"/><line x1="42" y1="44" x2="58" y2="44"/><line x1="42" y1="56" x2="58" y2="56"/><line x1="50" y1="8" x2="50" y2="2"/><rect x="14" y="34" width="18" height="34"/><rect x="70" y="28" width="16" height="40"/><line x1="0" y1="68" x2="100" y2="68" stroke-dasharray="4 3"/></svg>
+      </div>
+      <p>Tower One — <em>elevation</em></p>
+    </div>
+    <div class="plan reveal">
+      <div class="frame"><span class="n">II</span>
+        <svg viewBox="0 0 100 75"><rect x="30" y="10" width="40" height="55"/><rect x="44" y="40" width="12" height="25"/><rect x="36" y="16" width="10" height="10"/><rect x="54" y="16" width="10" height="10"/><circle cx="50" cy="35" r="6" stroke-dasharray="2 2"/></svg>
+      </div>
+      <p>The Crown Penthouse — <em>floor plan</em></p>
+    </div>
+    <div class="plan reveal">
+      <div class="frame"><span class="n">III</span>
+        <svg viewBox="0 0 100 75"><path d="M10 60 V30 l6 -8 6 8 V60 M20 60 V44 h12 v16 M70 60 V36 M66 42 h8 M66 52 h8"/><path d="M10 30 L16 14 L22 30"/><line x1="0" y1="60" x2="100" y2="60" stroke-dasharray="4 3"/></svg>
+      </div>
+      <p>The Skybridge — <em>section</em></p>
+    </div>
+  </div>
+</section>
+
+<section class="chapter" id="voices">
+  <h2 class="statement small reveal" style="text-align:center;margin:0 auto">Keys to<br><em>the sky.</em></h2>
+  <div class="quote-box" id="quote-box">
+    <div class="quote on"><p>"I have owned apartments in three cities. Nothing prepares you for watching dawn from the eighty-second floor."</p><cite>A. Rothschild — The Crown Penthouse, Manhattan</cite></div>
+    <div class="quote"><p>"The quietest place in Tokyo is somehow four hundred metres above Ginza. That is engineering as poetry."</p><cite>H. Nakamura — Ginza Sky Residence</cite></div>
+    <div class="quote"><p>"They did not sell me a residence. They sold me the skyline itself."</p><cite>V. Almasi — Twin Peaks Collection</cite></div>
+  </div>
+  <div class="q-nav" id="q-nav">
+    <button class="on"></button><button></button><button></button>
+  </div>
+</section>
+
+<section class="chapter" id="enquire">
+  <div>
+    <h2 class="statement reveal">Own the<br><em>skyline.</em></h2>
+    <form id="enquiry-form" class="reveal" novalidate>
+      <div class="field"><input type="text" required><label>Your name</label></div>
+      <div class="field"><input type="email" required><label>Email address</label></div>
+      <div class="field"><textarea rows="3" required></textarea><label>Your vision above the clouds</label></div>
+      <button class="gold-btn" type="submit">Request a viewing</button>
+      <div id="form-msg">✦ Thank you. Our private office will respond within twenty-four hours.</div>
+    </form>
+  </div>
+  <div>
+    <div class="city reveal" style="border:none;padding-top:0">
+      <svg viewBox="0 0 400 260" style="margin-top:0">
+        <g>
+          <rect x="60" y="110" width="30" height="150"/><rect x="110" y="60" width="36" height="200"/>
+          <path d="M180 260 V70 l9 -24 9 24 V260"/>
+          <rect x="230" y="100" width="38" height="160"/><rect x="290" y="40" width="34" height="220"/>
+          <rect x="344" y="130" width="26" height="130"/>
+        </g>
+        <g fill="#e8cf8f" stroke="none" opacity=".8"><circle cx="75" cy="150" r="2"/><circle cx="128" cy="100" r="2"/><circle cx="128" cy="200" r="2"/><circle cx="249" cy="140" r="2"/><circle cx="307" cy="90" r="2"/><circle cx="307" cy="190" r="2"/><circle cx="189" cy="110" r="2"/><circle cx="357" cy="170" r="2"/></g>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="big reveal">Metropole <em>Estates</em></div>
+  <div class="cols">
+    <div><b>New York</b>432 Park Avenue, Floor 78<br>Manhattan</div>
+    <div><b>Tokyo</b>Ginza Six, Chūō City<br>Tokyo</div>
+    <div><b>Private office</b>sky@metropole.estate<br>By appointment only</div>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.158.0/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script src="https://unpkg.com/lenis@1.1.14/dist/lenis.min.js"></script>
+<script>
+gsap.registerPlugin(ScrollTrigger);
+
+if (window.Lenis){
+  const lenis = new Lenis({duration:1.3, easing:t=>Math.min(1,1.001-Math.pow(2,-10*t))});
+  lenis.on('scroll', ScrollTrigger.update);
+  gsap.ticker.add(t=>lenis.raf(t*1000));
+  gsap.ticker.lagSmoothing(0);
+  document.querySelectorAll('a[href^="#"]').forEach(a=>{
+    a.addEventListener('click',e=>{ e.preventDefault(); lenis.scrollTo(a.getAttribute('href')); });
+  });
+}
+
+const dot = document.getElementById('cursor-dot'), ring = document.getElementById('cursor-ring');
+let cx=innerWidth/2, cy=innerHeight/2, rx=cx, ry=cy;
+addEventListener('mousemove',e=>{cx=e.clientX;cy=e.clientY;dot.style.left=cx+'px';dot.style.top=cy+'px';});
+(function cur(){ rx+=(cx-rx)*.14; ry+=(cy-ry)*.14; ring.style.left=rx+'px'; ring.style.top=ry+'px'; requestAnimationFrame(cur); })();
+document.querySelectorAll('a,button,input,textarea,.city,.plan').forEach(el=>{
+  el.addEventListener('mouseenter',()=>ring.classList.add('hovering'));
+  el.addEventListener('mouseleave',()=>ring.classList.remove('hovering'));
+});
+
+/* ================= THREE.JS — THE CITY ================= */
+const wrap = document.getElementById('canvas-wrap');
+const scene = new THREE.Scene();
+const SKY_DUSK = new THREE.Color(0x1a2133), SKY_NIGHT = new THREE.Color(0x030409);
+scene.background = SKY_DUSK.clone();
+scene.fog = new THREE.Fog(SKY_DUSK.clone(), 30, 110);
+
+const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, .1, 400);
+camera.position.set(24, 14, 26);
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+wrap.prepend(renderer.domElement);
+
+scene.add(new THREE.AmbientLight(0x3a4150, 1.1));
+const sun = new THREE.DirectionalLight(0xffe2b0, 2.2);
+sun.position.set(30, 40, 18);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left=-40; sun.shadow.camera.right=40;
+sun.shadow.camera.top=40; sun.shadow.camera.bottom=-40;
+scene.add(sun);
+const rim = new THREE.DirectionalLight(0xc9a24b, .8);
+rim.position.set(-24, 10, -18); scene.add(rim);
+const moon = new THREE.DirectionalLight(0x8fa8ff, 0);
+moon.position.set(-18, 34, -22); scene.add(moon);
+
+const ground = new THREE.Mesh(new THREE.CircleGeometry(120, 64),
+  new THREE.MeshStandardMaterial({color:0x0d0f15, roughness:.95}));
+ground.rotation.x = -Math.PI/2; ground.receiveShadow = true; scene.add(ground);
+const grid = new THREE.GridHelper(160, 80, 0x1e222d, 0x131722);
+grid.position.y = .01; scene.add(grid);
+
+const avenueMat = new THREE.MeshStandardMaterial({color:0x191c25, emissive:0xc9a24b, emissiveIntensity:0, roughness:.8});
+[-8, 0, 8].forEach(x=>{
+  const a = new THREE.Mesh(new THREE.BoxGeometry(1.6,.06,120), avenueMat);
+  a.position.set(x,.03,0); scene.add(a);
+});
+[-8, 0, 8].forEach(z=>{
+  const a = new THREE.Mesh(new THREE.BoxGeometry(120,.06,1.6), avenueMat);
+  a.position.set(0,.03,z); scene.add(a);
+});
+
+const starGeo = new THREE.BufferGeometry();
+const sN=900, sPos=new Float32Array(sN*3);
+for(let i=0;i<sN;i++){
+  const a=Math.random()*Math.PI*2, e=Math.random()*Math.PI*.45, r=150;
+  sPos[i*3]=Math.cos(a)*Math.cos(e)*r; sPos[i*3+1]=Math.sin(e)*r+6; sPos[i*3+2]=Math.sin(a)*Math.cos(e)*r;
+}
+starGeo.setAttribute('position', new THREE.BufferAttribute(sPos,3));
+const starMat = new THREE.PointsMaterial({color:0xf2ede3,size:.3,transparent:true,opacity:0});
+scene.add(new THREE.Points(starGeo, starMat));
+
+function windowTexture(){
+  const c=document.createElement('canvas'); c.width=64; c.height=128;
+  const g=c.getContext('2d');
+  g.fillStyle='#090c13'; g.fillRect(0,0,64,128);
+  for(let y=0;y<18;y++)for(let x=0;x<6;x++){
+    if(Math.random()<.48){
+      g.fillStyle = Math.random()<.78 ? '#ffce7a' : (Math.random()<.5?'#fff3d0':'#9fd8ff');
+      g.fillRect(x*10+3, y*7+2, 5, 3);
+    }
+  }
+  return new THREE.CanvasTexture(c);
+}
+const winTex = windowTexture();
+const towerMat = new THREE.MeshStandardMaterial({
+  color:0x131826, roughness:.35, metalness:.55,
+  map:winTex, emissive:0xffc76a, emissiveMap:winTex, emissiveIntensity:0
+});
+const goldMat = new THREE.MeshStandardMaterial({color:0xc9a24b, roughness:.25, metalness:.9, emissive:0xc9a24b, emissiveIntensity:0});
+
+const unitBox = new THREE.BoxGeometry(1,1,1); unitBox.translate(0,.5,0);
+const city = new THREE.Group(); scene.add(city);
+const towers = [];
+let seed = 7;
+const rnd = ()=>{ seed = (seed*16807)%2147483647; return seed/2147483647; };
+const spots = [];
+for(let gx=-3; gx<=3; gx++) for(let gz=-3; gz<=3; gz++){
+  if(gx===0 && gz===0) continue;
+  if(Math.abs(gx)<1 || Math.abs(gz)<1){ if(rnd()<.4) continue; }
+  spots.push([gx*8 + (rnd()-.5)*3, gz*8 + (rnd()-.5)*3]);
+}
+spots.forEach(([x,z])=>{
+  const d = Math.hypot(x,z);
+  const h = Math.max(2.2, 15 - d*.9) * (0.5 + rnd()*.9);
+  const w = 2.2 + rnd()*2.2, dep = 2.2 + rnd()*2.2;
+  const m = new THREE.Mesh(unitBox, towerMat);
+  m.position.set(x,0,z); m.scale.set(w,h,dep);
+  m.castShadow = m.receiveShadow = true;
+  city.add(m);
+  towers.push({m, h, order: rnd()});
+});
+towers.sort((a,b)=>a.order-b.order);
+
+const spire = new THREE.Group(); scene.add(spire);
+const spireBody = new THREE.Mesh(unitBox, towerMat);
+spireBody.scale.set(3.4, 17, 3.4); spireBody.castShadow = true; spire.add(spireBody);
+[4, 9, 14].forEach(y=>{ const r = new THREE.Mesh(new THREE.BoxGeometry(3.8,.28,3.8), goldMat); r.position.y = y; spire.add(r); });
+const antenna = new THREE.Mesh(new THREE.CylinderGeometry(.08,.16,5,8), goldMat);
+antenna.position.y = 19.5; spire.add(antenna);
+const beacon = new THREE.Mesh(new THREE.SphereGeometry(.32,12,12), goldMat.clone());
+beacon.position.y = 22.1; spire.add(beacon);
+const beaconLight = new THREE.PointLight(0xc9a24b, 0, 40);
+beaconLight.position.y = 22; spire.add(beaconLight);
+spire.scale.set(.0001,.0001,.0001);
+
+const gate = new THREE.Group(); gate.position.set(0,0,16); scene.add(gate);
+function gatePillar(x){ const p = new THREE.Mesh(new THREE.CylinderGeometry(.35,.45,7,10), goldMat); p.position.set(x,3.5,0); p.castShadow=true; gate.add(p); }
+gatePillar(-3.4); gatePillar(3.4);
+const lintel1 = new THREE.Mesh(new THREE.BoxGeometry(9.6,.55,.7), goldMat); lintel1.position.y = 7.1; lintel1.castShadow=true; gate.add(lintel1);
+const lintel2 = new THREE.Mesh(new THREE.BoxGeometry(8,.4,.55), goldMat); lintel2.position.y = 5.9; gate.add(lintel2);
+gate.scale.set(.0001,.0001,.0001);
+
+const cars = [];
+const carGeo = new THREE.BoxGeometry(.28,.16,.9);
+const carGold = new THREE.MeshBasicMaterial({color:0xffd98a, transparent:true, opacity:0});
+const carRed  = new THREE.MeshBasicMaterial({color:0xff5a4a, transparent:true, opacity:0});
+for(let i=0;i<26;i++){
+  const lane = [-8,0,8][i%3] + (i%2? .5 : -.5);
+  const alongX = i%2===0;
+  const mat = (i%4<2) ? carGold : carRed;
+  const c = new THREE.Mesh(carGeo, mat);
+  c.position.set(alongX ? -55+Math.random()*110 : lane, .25, alongX ? lane : -55+Math.random()*110);
+  c.rotation.y = alongX ? Math.PI/2 : 0;
+  scene.add(c);
+  cars.push({c, alongX, dir: (i%4<2)?1:-1, speed: 6+Math.random()*7});
+}
+
+const pGeo = new THREE.BufferGeometry();
+const pCount=450, pos=new Float32Array(pCount*3);
+for(let i=0;i<pCount;i++){ pos[i*3]=(Math.random()-.5)*90; pos[i*3+1]=Math.random()*30; pos[i*3+2]=(Math.random()-.5)*90; }
+pGeo.setAttribute('position', new THREE.BufferAttribute(pos,3));
+const dust = new THREE.Points(pGeo, new THREE.PointsMaterial({color:0xc9a24b,size:.06,transparent:true,opacity:.4}));
+scene.add(dust);
+
+/* ================= BUILD PROGRESS ================= */
+let progress = 0;
+const ease = t => t<0?0:t>1?1:t*t*(3-2*t);
+const seg = (p,a,b) => ease((p-a)/(b-a));
+
+const romanEl = document.getElementById('roman');
+const stepTitle = document.getElementById('step-title');
+const pFill = document.getElementById('p-fill');
+const ROMANS = ['I','II','III','IV','V','VI','VII'];
+const phases = [
+  [0.00,'Concrete &amp; <em>Intent</em>'],
+  [0.12,'Steel Meets <em>Stone</em>'],
+  [0.26,'Towers Climb the <em>Sky</em>'],
+  [0.48,'A City Takes <em>Shape</em>'],
+  [0.62,'One Tower Above <em>All</em>'],
+  [0.74,'Ten Thousand <em>Windows</em>'],
+  [0.90,'New York. <em>Tokyo.</em> One Sky.']
+];
+let curPhase = -1;
+
+const skyC = new THREE.Color(), fogC = new THREE.Color(), sunC = new THREE.Color();
+const SUN_WARM = new THREE.Color(0xffe2b0), SUN_COOL = new THREE.Color(0xa8bcff);
+const clock = new THREE.Clock();
+
+function applyBuild(p){
+  progress = p;
+  const N = towers.length;
+  towers.forEach((t,i)=>{
+    const start = .10 + (i/N)*.5;
+    t.m.scale.y = t.h * Math.max(ease((p-start)/.16), .0001);
+  });
+  spire.scale.setScalar(Math.max(seg(p,.62,.74),.0001));
+  gate.scale.setScalar(Math.max(seg(p,.55,.66),.0001));
+
+  const n = seg(p,.74,.93);
+  skyC.copy(SKY_DUSK).lerp(SKY_NIGHT, n);
+  scene.background.copy(skyC); fogC.copy(skyC); scene.fog.color.copy(fogC);
+  sunC.copy(SUN_WARM).lerp(SUN_COOL, n);
+  sun.color.copy(sunC); sun.intensity = 2.2 - n*1.4;
+  moon.intensity = n*.9;
+  starMat.opacity = n*.9;
+  towerMat.emissiveIntensity = n*1.7;
+  goldMat.emissiveIntensity = n*.55;
+  beacon.material.emissiveIntensity = n*2;
+  beaconLight.intensity = n*6 + Math.sin(clock.getElapsedTime()*3)*n*2;
+  avenueMat.emissiveIntensity = n*1.4;
+  carGold.opacity = n; carRed.opacity = n;
+
+  pFill.style.height = (p*100)+'%';
+  let ph = 0; phases.forEach((f,i)=>{ if(p>=f[0]) ph=i; });
+  if(ph!==curPhase){ curPhase=ph;
+    romanEl.textContent = ROMANS[ph];
+    gsap.fromTo(romanEl,{opacity:0},{opacity:1,duration:.8});
+    gsap.fromTo(stepTitle,{opacity:0,y:18},{opacity:1,y:0,duration:.7,onStart:()=>stepTitle.innerHTML=phases[ph][1]});
+  }
+}
+
+ScrollTrigger.create({
+  trigger:'#stage', start:'top top', end:'bottom bottom', scrub:.6,
+  onUpdate: st => applyBuild(st.progress)
+});
+
+/* ================= CAMERA ================= */
+let mx=0, my=0;
+addEventListener('mousemove', e=>{ mx=(e.clientX/innerWidth-.5)*2; my=(e.clientY/innerHeight-.5)*2; });
+
+function loop(){
+  requestAnimationFrame(loop);
+  const t = clock.getElapsedTime();
+  const a = progress*Math.PI*1.15 + .5;
+  const tx = Math.sin(a)*26 + mx*3;
+  const tz = Math.cos(a)*26;
+  const ty = 13 + progress*9 - my*2;
+  camera.position.x += (tx-camera.position.x)*.045;
+  camera.position.y += (ty-camera.position.y)*.045;
+  camera.position.z += (tz-camera.position.z)*.045;
+  camera.lookAt(0, 5 + progress*4, 0);
+
+  cars.forEach(c=>{
+    if(c.alongX){ c.c.position.x += c.dir*c.speed*.016; if(Math.abs(c.c.position.x)>58) c.c.position.x = -c.dir*58; }
+    else { c.c.position.z += c.dir*c.speed*.016; if(Math.abs(c.c.position.z)>58) c.c.position.z = -c.dir*58; }
+  });
+  dust.rotation.y = t*.015;
+  renderer.render(scene, camera);
+}
+loop();
+addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+/* ================= UI ================= */
+gsap.utils.toArray('.reveal').forEach(el=>{
+  gsap.to(el,{opacity:1,y:0,duration:1.4,ease:'power3.out',
+    scrollTrigger:{trigger:el,start:'top 86%'}});
+});
+gsap.utils.toArray('[data-count]').forEach(el=>{
+  const end = parseFloat(el.dataset.count), dec = +(el.dataset.dec||0);
+  const obj = {v:0};
+  gsap.to(obj,{v:end,duration:2.2,ease:'power2.out',
+    scrollTrigger:{trigger:el,start:'top 90%'},
+    onUpdate:()=>el.textContent = obj.v.toFixed(dec)});
+});
+addEventListener('scroll', ()=>document.getElementById('nav').classList.toggle('scrolled', scrollY>60), {passive:true});
+
+const qs = document.querySelectorAll('.quote'), qbs = document.querySelectorAll('#q-nav button');
+let qi = 0, qTimer = setInterval(()=>showQ((qi+1)%qs.length), 5500);
+function showQ(i){ qi=i;
+  qs.forEach((q,k)=>q.classList.toggle('on',k===i));
+  qbs.forEach((b,k)=>b.classList.toggle('on',k===i));
+}
+qbs.forEach((b,i)=>b.addEventListener('click',()=>{ clearInterval(qTimer); showQ(i); qTimer=setInterval(()=>showQ((qi+1)%qs.length),5500); }));
+
+document.getElementById('enquiry-form').addEventListener('submit', e=>{
+  e.preventDefault();
+  const form = e.target, ok = [...form.querySelectorAll('input,textarea')].every(f=>f.value.trim());
+  const msg = document.getElementById('form-msg');
+  if(!ok){ msg.textContent='✦ Please complete all fields.'; msg.style.color='#d98a8a'; msg.style.opacity=1; return; }
+  msg.textContent='✦ Thank you. Our private office will respond within twenty-four hours.';
+  msg.style.color=''; msg.style.opacity=1;
+  form.reset();
+  gsap.fromTo(msg,{y:8},{y:0,duration:.6});
+});
+
+setTimeout(()=>document.getElementById('loader').classList.add('done'), 1400);
+</script>
+</body>
+</html>
